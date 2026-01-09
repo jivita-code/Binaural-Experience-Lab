@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NowPlayingCard } from "./components/NowPlayingCard";
 import { BinauralControlPanel } from "./components/BinauralControlPanel";
 import { AmbientSoundController } from "./components/AmbientSoundController";
@@ -11,8 +11,25 @@ export default function App() {
   const [binauralVolume, setBinauralVolume] = useState(10);
   const [binauralEnabled, setBinauralEnabled] = useState(true);
 
+  // Ambient tracks from /tracks (mp3 only)
+  const ambientTracks = useMemo(() => {
+    const modules = import.meta.glob("../../tracks/*.mp3", {
+      eager: true,
+      as: "url",
+    }) as Record<string, string>;
+
+    return Object.entries(modules)
+      .map(([path, url]) => ({
+        name: path.split("/").pop() ?? path,
+        url,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
   // Ambient settings
-  const [ambientType, setAmbientType] = useState("rain");
+  const [ambientType, setAmbientType] = useState(
+    ambientTracks[0]?.name ?? "",
+  );
   const [ambientVolume, setAmbientVolume] = useState(30);
   const [ambientEnabled, setAmbientEnabled] = useState(true);
 
@@ -176,75 +193,52 @@ export default function App() {
       ambientGainRef.current.disconnect();
     }
 
-    if (ambientEnabled && isPlaying && ambientType !== "none") {
-      // Create audio element for ambient sound
-      // Note: Using data URLs for demo purposes - in production, use actual audio files
-      const audio = new Audio();
+    const selectedTrack = ambientTracks.find(
+      (track) => track.name === ambientType,
+    );
 
-      // Mock ambient sounds - in production, replace with actual audio files
-      // For now, we'll create a simple noise generator using Web Audio API
+    if (ambientEnabled && isPlaying && selectedTrack) {
       const ctx = audioContextRef.current;
+      const audio = new Audio(selectedTrack.url);
+      audio.loop = true;
+      audio.crossOrigin = "anonymous";
 
-      if (ambientType === "white" || ambientType === "brown") {
-        // Create noise using buffer
-        const bufferSize = 2 * ctx.sampleRate;
-        const noiseBuffer = ctx.createBuffer(
-          1,
-          bufferSize,
-          ctx.sampleRate,
-        );
-        const output = noiseBuffer.getChannelData(0);
+      const source = ctx.createMediaElementSource(audio);
+      const ambientGain = ctx.createGain();
+      ambientGain.gain.value = ambientVolume / 100;
 
-        if (ambientType === "white") {
-          // White noise
-          for (let i = 0; i < bufferSize; i++) {
-            output[i] = Math.random() * 2 - 1;
-          }
-        } else {
-          // Brown noise (simplified)
-          let lastOut = 0.0;
-          for (let i = 0; i < bufferSize; i++) {
-            const white = Math.random() * 2 - 1;
-            output[i] = (lastOut + 0.02 * white) / 1.02;
-            lastOut = output[i];
-            output[i] *= 3.5;
-          }
-        }
+      source.connect(ambientGain);
+      ambientGain.connect(masterGainRef.current);
 
-        const noiseSource = ctx.createBufferSource();
-        noiseSource.buffer = noiseBuffer;
-        noiseSource.loop = true;
+      ambientAudioRef.current = audio;
+      ambientSourceRef.current = source;
+      ambientGainRef.current = ambientGain;
 
-        const ambientGain = ctx.createGain();
-        ambientGain.gain.value = ambientVolume / 100;
+      ctx.resume().catch(() => {
+        // Ignore if context cannot resume (non-blocking)
+      });
 
-        noiseSource.connect(ambientGain);
-        ambientGain.connect(masterGainRef.current);
-
-        noiseSource.start();
-
-        // Store refs
-        ambientSourceRef.current = noiseSource as any;
-        ambientGainRef.current = ambientGain;
-      } else {
-        // For other sounds (rain, ocean, forest, wind), we would load actual audio files
-        // For demo purposes, we'll show placeholders
-        console.log(
-          `Ambient sound "${ambientType}" would play here with actual audio files`,
-        );
-      }
+      audio.play().catch(() => {
+        // Ignore autoplay rejection; user needs to interact first
+      });
     }
 
     return () => {
       if (ambientSourceRef.current) {
-        try {
-          (ambientSourceRef.current as any).stop?.();
-        } catch (e) {
-          // Ignore if already stopped
-        }
+        ambientSourceRef.current.disconnect();
+        ambientSourceRef.current = null;
+      }
+      if (ambientGainRef.current) {
+        ambientGainRef.current.disconnect();
+        ambientGainRef.current = null;
+      }
+      if (ambientAudioRef.current) {
+        ambientAudioRef.current.pause();
+        ambientAudioRef.current.src = "";
+        ambientAudioRef.current = null;
       }
     };
-  }, [ambientEnabled, ambientType, isPlaying]);
+  }, [ambientEnabled, ambientType, ambientTracks, isPlaying]);
 
   // Update ambient volume
   useEffect(() => {
@@ -388,6 +382,7 @@ export default function App() {
               ambientType={ambientType}
               ambientVolume={ambientVolume}
               ambientEnabled={ambientEnabled}
+              tracks={ambientTracks.map((track) => track.name)}
               onAmbientTypeChange={setAmbientType}
               onAmbientVolumeChange={setAmbientVolume}
               onAmbientEnabledChange={setAmbientEnabled}

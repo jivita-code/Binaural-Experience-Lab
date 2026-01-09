@@ -12,6 +12,7 @@ interface AmbientSoundControllerProps {
   ambientType: string;
   ambientVolume: number;
   ambientEnabled: boolean;
+  tracks: string[];
   onAmbientTypeChange: (type: string) => void;
   onAmbientVolumeChange: (value: number) => void;
   onAmbientEnabledChange: (enabled: boolean) => void;
@@ -21,10 +22,13 @@ export function AmbientSoundController({
   ambientType,
   ambientVolume,
   ambientEnabled,
+  tracks,
   onAmbientTypeChange,
   onAmbientVolumeChange,
   onAmbientEnabledChange,
 }: AmbientSoundControllerProps) {
+  const hasTracks = tracks.length > 0;
+
   return (
     <div className="w-full px-4 py-3 lg:py-2">
       <div className="max-w-6xl mx-auto bg-white/5 backdrop-blur-xl rounded-3xl p-4 lg:p-5 ring-1 ring-cyan-500/30 shadow-2xl shadow-cyan-500/20">
@@ -52,18 +56,26 @@ export function AmbientSoundController({
             <Select
               value={ambientType}
               onValueChange={onAmbientTypeChange}
-              disabled={!ambientEnabled}
+              disabled={!ambientEnabled || !hasTracks}
             >
               <SelectTrigger className="w-full bg-purple-950/50 text-purple-100 ring-1 ring-cyan-500/30 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed border-cyan-500/30">
                 <SelectValue placeholder="Select a sound" />
               </SelectTrigger>
               <SelectContent className="bg-gray-900 border-cyan-500/30 text-purple-100">
-                <SelectItem value="rain" className="focus:bg-purple-900/50 focus:text-purple-100">Rain</SelectItem>
-                <SelectItem value="ocean" className="focus:bg-purple-900/50 focus:text-purple-100">Ocean</SelectItem>
-                <SelectItem value="forest" className="focus:bg-purple-900/50 focus:text-purple-100">Forest</SelectItem>
-                <SelectItem value="wind" className="focus:bg-purple-900/50 focus:text-purple-100">Wind</SelectItem>
-                <SelectItem value="white" className="focus:bg-purple-900/50 focus:text-purple-100">White Noise</SelectItem>
-                <SelectItem value="brown" className="focus:bg-purple-900/50 focus:text-purple-100">Brown Noise</SelectItem>
+                {tracks.map((track) => (
+                  <SelectItem
+                    key={track}
+                    value={track}
+                    className="focus:bg-purple-900/50 focus:text-purple-100"
+                  >
+                    {track}
+                  </SelectItem>
+                ))}
+                {!hasTracks && (
+                  <SelectItem value="" disabled>
+                    No tracks found
+                  </SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>

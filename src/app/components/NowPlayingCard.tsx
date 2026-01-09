@@ -24,21 +24,7 @@ export function NowPlayingCard({
   onPlayPause,
   onReset
 }: NowPlayingCardProps) {
-  // Convert ambient type to display name
-  const getTrackName = () => {
-    const ambientNames: Record<string, string> = {
-      rain: 'Rain',
-      ocean: 'Ocean Waves',
-      forest: 'Forest',
-      wind: 'Wind',
-      white: 'White Noise',
-      brown: 'Brown Noise',
-      none: 'Theta Focus'
-    };
-    
-    const ambientName = ambientNames[ambientType] || 'Theta Focus';
-    return `${ambientName}`;
-  };
+  const getTrackName = () => ambientType || 'No ambient track';
 
   // Format time
   const formatTime = (totalSeconds: number) => {
