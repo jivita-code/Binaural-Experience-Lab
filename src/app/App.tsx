@@ -20,7 +20,7 @@ export default function App() {
 
     return Object.entries(modules)
       .map(([path, url]) => ({
-        name: path.split("/").pop() ?? path,
+        name: (path.split("/").pop() ?? path).replace(/\.mp3$/i, ""),
         url,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
