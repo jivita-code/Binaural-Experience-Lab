@@ -15,7 +15,8 @@ export default function App() {
   const ambientTracks = useMemo(() => {
     const modules = import.meta.glob("../../tracks/*.mp3", {
       eager: true,
-      as: "url",
+      query: "?url",
+      import: "default",
     }) as Record<string, string>;
 
     return Object.entries(modules)
